@@ -227,24 +227,8 @@ func (s *Server) CreateToken(ctx context.Context, r *account.CreateTokenRequest)
 		id = uniqueId.String()
 	}
 
-	// Check if account exists, if not and user is creating token for themselves, create account
-	_, err := s.settingsMgr.GetAccount(r.Name)
-	if err != nil && status.Code(err) == codes.NotFound && currentUser == r.Name {
-		// Create account for SSO user with apiKey capability
-		newAccount := settings.Account{
-			Enabled:      true,
-			Capabilities: []settings.AccountCapability{settings.AccountCapabilityApiKey},
-			Tokens:       []settings.Token{},
-		}
-		if err := s.settingsMgr.AddAccount(r.Name, newAccount); err != nil {
-			return nil, fmt.Errorf("failed to create account for SSO user %s: %w", r.Name, err)
-		}
-	} else if err != nil {
-		return nil, fmt.Errorf("failed to get account %s: %w", r.Name, err)
-	}
-
 	var tokenString string
-	err = s.settingsMgr.UpdateAccount(r.Name, func(account *settings.Account) error {
+	err := s.settingsMgr.UpdateAccount(r.Name, func(account *settings.Account) error {
 		if account.TokenIndex(id) > -1 {
 			return fmt.Errorf("account already has token with id '%s'", id)
 		}
