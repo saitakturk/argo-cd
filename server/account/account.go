@@ -174,7 +174,6 @@ func (s *Server) ListAccounts(ctx context.Context, _ *account.ListAccountRequest
 	if err != nil {
 		return nil, fmt.Errorf("failed to get accounts: %w", err)
 	}
-	s.cleanupExpiredSSOAccounts(accounts)
 	for name, a := range accounts {
 		if err := s.ensureHasAccountPermission(ctx, rbac.ActionGet, name); err == nil {
 			resp.Items = append(resp.Items, toAPIAccount(name, a))
@@ -184,30 +183,6 @@ func (s *Server) ListAccounts(ctx context.Context, _ *account.ListAccountRequest
 		return resp.Items[i].Name < resp.Items[j].Name
 	})
 	return &resp, nil
-}
-
-func (s *Server) cleanupExpiredSSOAccounts(accounts map[string]settings.Account) {
-	for name, account := range accounts {
-		if len(account.Capabilities) == 1 && account.Capabilities[0] == settings.AccountCapabilityApiKey {
-			hasValidToken := false
-			for _, token := range account.Tokens {
-				if token.ExpiresAt == 0 || time.Now().Unix() < token.ExpiresAt {
-					hasValidToken = true
-					break
-				}
-			}
-			if !hasValidToken {
-				if err := s.settingsMgr.UpdateAccount(name, func(acc *settings.Account) error {
-					acc.Tokens = nil
-					acc.Capabilities = nil
-					acc.Enabled = false
-					return nil
-				}); err != nil {
-					log.Warnf("failed to cleanup expired SSO account %s: %v", name, err)
-				}
-			}
-		}
-	}
 }
 
 // GetAccount returns an account

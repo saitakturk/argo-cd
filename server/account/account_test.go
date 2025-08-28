@@ -472,32 +472,3 @@ func TestCreateToken_SSOTokenExpired(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "SSO token has expired")
 }
-
-func TestListAccounts_CleansUpExpiredSSOAccounts(t *testing.T) {
-	accountServer, _ := newTestAccountServer(t, t.Context())
-
-	ssoUser := "expired-sso-user"
-	//nolint:staticcheck
-	ctx := context.WithValue(context.Background(), "claims", jwt.MapClaims{
-		"iss": "https://sso.example.com",
-		"sub": ssoUser,
-		"exp": time.Now().Add(time.Hour).Unix(),
-	})
-
-	_, err := accountServer.CreateToken(ctx, &account.CreateTokenRequest{
-		Name:      ssoUser,
-		ExpiresIn: 1,
-	})
-	require.NoError(t, err)
-
-	time.Sleep(2 * time.Second)
-
-	adminCtx := adminContext(t.Context())
-	_, err = accountServer.ListAccounts(adminCtx, &account.ListAccountRequest{})
-	require.NoError(t, err)
-
-	accountResp, err := accountServer.GetAccount(adminCtx, &account.GetAccountRequest{Name: ssoUser})
-	require.NoError(t, err)
-	require.Empty(t, accountResp.Capabilities)
-	require.False(t, accountResp.Enabled)
-}
