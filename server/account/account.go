@@ -210,13 +210,9 @@ func (s *Server) CreateToken(ctx context.Context, r *account.CreateTokenRequest)
 				if time.Now().After(ssoExp) {
 					return nil, status.Errorf(codes.Unauthenticated, "SSO token has expired")
 				}
-				if r.ExpiresIn == 0 {
-					r.ExpiresIn = int64(time.Until(ssoExp).Seconds())
-				} else {
-					maxDuration := int64(time.Until(ssoExp).Seconds())
-					if r.ExpiresIn > maxDuration {
-						r.ExpiresIn = maxDuration
-					}
+				maxDuration := int64(time.Until(ssoExp).Seconds())
+				if r.ExpiresIn == 0 || r.ExpiresIn > maxDuration {
+					r.ExpiresIn = maxDuration
 				}
 			}
 		}
