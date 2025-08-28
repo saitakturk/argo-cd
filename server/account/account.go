@@ -190,10 +190,12 @@ func (s *Server) GetAccount(ctx context.Context, r *account.GetAccountRequest) (
 	if err := s.ensureHasAccountPermission(ctx, rbac.ActionGet, r.Name); err != nil {
 		return nil, fmt.Errorf("permission denied to get account %s: %w", r.Name, err)
 	}
+	
 	a, err := s.settingsMgr.GetAccount(r.Name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get account %s: %w", r.Name, err)
 	}
+
 	return toAPIAccount(r.Name, *a), nil
 }
 
@@ -282,9 +284,14 @@ func (s *Server) DeleteToken(ctx context.Context, r *account.DeleteTokenRequest)
 		return nil, fmt.Errorf("permission denied to delete account %s: %w", r.Name, err)
 	}
 
+	var shouldDeleteAccount bool
 	err := s.settingsMgr.UpdateAccount(r.Name, func(account *settings.Account) error {
 		if index := account.TokenIndex(r.Id); index > -1 {
 			account.Tokens = append(account.Tokens[:index], account.Tokens[index+1:]...)
+			
+			if len(account.Tokens) == 0 && len(account.Capabilities) == 1 && account.Capabilities[0] == settings.AccountCapabilityApiKey {
+				shouldDeleteAccount = true
+			}
 			return nil
 		}
 		return status.Errorf(codes.NotFound, "token with id '%s' does not exist", r.Id)
@@ -292,5 +299,21 @@ func (s *Server) DeleteToken(ctx context.Context, r *account.DeleteTokenRequest)
 	if err != nil {
 		return nil, fmt.Errorf("failed to delete account %s: %w", r.Name, err)
 	}
+
+	if shouldDeleteAccount {
+		if err := s.deleteSSORevokedAccount(r.Name); err != nil {
+			log.Warnf("failed to delete SSO account %s: %v", r.Name, err)
+		}
+	}
+
 	return &account.EmptyResponse{}, nil
+}
+
+func (s *Server) deleteSSORevokedAccount(name string) error {
+	return s.settingsMgr.UpdateAccount(name, func(account *settings.Account) error {
+		account.Tokens = nil
+		account.Capabilities = nil
+		account.Enabled = false
+		return nil
+	})
 }

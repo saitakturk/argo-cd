@@ -453,6 +453,8 @@ func TestDeleteToken_SSOUserDeletesOwnToken(t *testing.T) {
 	accountResp, err = accountServer.GetAccount(ctx, &account.GetAccountRequest{Name: ssoUser})
 	require.NoError(t, err)
 	require.Empty(t, accountResp.Tokens)
+	require.Empty(t, accountResp.Capabilities)
+	require.False(t, accountResp.Enabled)
 }
 
 func TestCreateToken_SSOTokenExpired(t *testing.T) {
