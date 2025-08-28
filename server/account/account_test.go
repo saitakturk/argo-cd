@@ -380,10 +380,10 @@ func TestCreateToken_SSOTokenExpirationLimit(t *testing.T) {
 	accountResp, err := accountServer.GetAccount(ctx, &account.GetAccountRequest{Name: "ssouser"})
 	require.NoError(t, err)
 	assert.Len(t, accountResp.Tokens, 1)
-	
+
 	// Token should expire around the same time as SSO token (within 1 minute tolerance)
 	tokenExp := time.Unix(accountResp.Tokens[0].ExpiresAt, 0)
-	assert.WithinDuration(t, ssoExpiration, tokenExp, time.Minute)
+	assert.WithinDuration(t, tokenExp, ssoExpiration, time.Minute)
 }
 
 func TestDeleteToken_SuccessfullyRemoved(t *testing.T) {
