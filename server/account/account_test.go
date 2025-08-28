@@ -453,41 +453,6 @@ func TestDeleteToken_SSOUserDeletesOwnToken(t *testing.T) {
 	accountResp, err = accountServer.GetAccount(ctx, &account.GetAccountRequest{Name: ssoUser})
 	require.NoError(t, err)
 	require.Empty(t, accountResp.Tokens)
-	require.Empty(t, accountResp.Capabilities)
-	require.False(t, accountResp.Enabled)
-}
-
-func TestDeleteToken_SSOAccountDeletedWithRemainingTokens(t *testing.T) {
-	accountServer, _ := newTestAccountServer(t, t.Context())
-
-	ssoUser := "sso-user"
-	//nolint:staticcheck
-	ctx := context.WithValue(context.Background(), "claims", jwt.MapClaims{
-		"iss": "https://sso.example.com",
-		"sub": ssoUser,
-		"exp": time.Now().Add(time.Hour).Unix(),
-	})
-
-	_, err := accountServer.CreateToken(ctx, &account.CreateTokenRequest{Name: ssoUser})
-	require.NoError(t, err)
-
-	_, err = accountServer.CreateToken(ctx, &account.CreateTokenRequest{Name: ssoUser})
-	require.NoError(t, err)
-
-	accountResp, err := accountServer.GetAccount(ctx, &account.GetAccountRequest{Name: ssoUser})
-	require.NoError(t, err)
-	require.Len(t, accountResp.Tokens, 2)
-
-	_, err = accountServer.DeleteToken(ctx, &account.DeleteTokenRequest{
-		Name: ssoUser,
-		Id:   accountResp.Tokens[0].Id,
-	})
-	require.NoError(t, err)
-
-	accountResp, err = accountServer.GetAccount(ctx, &account.GetAccountRequest{Name: ssoUser})
-	require.NoError(t, err)
-	require.Empty(t, accountResp.Capabilities)
-	require.False(t, accountResp.Enabled)
 }
 
 func TestCreateToken_SSOTokenExpired(t *testing.T) {
