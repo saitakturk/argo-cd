@@ -215,12 +215,10 @@ func (s *Server) GetAccount(ctx context.Context, r *account.GetAccountRequest) (
 	if err := s.ensureHasAccountPermission(ctx, rbac.ActionGet, r.Name); err != nil {
 		return nil, fmt.Errorf("permission denied to get account %s: %w", r.Name, err)
 	}
-	
 	a, err := s.settingsMgr.GetAccount(r.Name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get account %s: %w", r.Name, err)
 	}
-
 	return toAPIAccount(r.Name, *a), nil
 }
 
