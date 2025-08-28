@@ -294,7 +294,6 @@ func TestCreateToken_UserSpecifiedID(t *testing.T) {
 }
 
 func TestCreateToken_SSOUserCreatesOwnToken(t *testing.T) {
-	// Create SSO user context for user "ssouser"
 	ssoUserContext := func(ctx context.Context) context.Context {
 		//nolint:staticcheck
 		return context.WithValue(ctx, "claims", &jwt.RegisteredClaims{
@@ -307,12 +306,10 @@ func TestCreateToken_SSOUserCreatesOwnToken(t *testing.T) {
 	ctx := ssoUserContext(t.Context())
 	accountServer, _ := newTestAccountServer(t, ctx)
 
-	// SSO user should be able to create token for themselves even without pre-existing account
 	resp, err := accountServer.CreateToken(ctx, &account.CreateTokenRequest{Name: "ssouser"})
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Token)
 
-	// Verify account was created with apiKey capability
 	accountResp, err := accountServer.GetAccount(ctx, &account.GetAccountRequest{Name: "ssouser"})
 	require.NoError(t, err)
 	assert.True(t, accountResp.Enabled)

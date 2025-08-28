@@ -158,7 +158,6 @@ func toAPIAccount(name string, a settings.Account) *account.Account {
 func (s *Server) ensureHasAccountPermission(ctx context.Context, action string, account string) error {
 	id := session.GetUserIdentifier(ctx)
 
-	// account always has access to itself (both local and SSO users)
 	if id == account {
 		return nil
 	}
