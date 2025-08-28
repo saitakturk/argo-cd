@@ -203,14 +203,20 @@ func (s *Server) CreateToken(ctx context.Context, r *account.CreateTokenRequest)
 		return nil, fmt.Errorf("permission denied to create token for account %s: %w", r.Name, err)
 	}
 
-	// For SSO users, limit token expiration to SSO token expiration
 	currentUser := session.GetUserIdentifier(ctx)
 	if currentUser == r.Name && session.Iss(ctx) != session.SessionManagerClaimsIssuer {
 		if claims, ok := ctx.Value("claims").(jwt.MapClaims); ok {
 			if ssoExp, err := jwtutil.ExpirationTime(claims); err == nil {
-				maxDuration := int64(time.Until(ssoExp).Seconds())
-				if r.ExpiresIn == 0 || r.ExpiresIn > maxDuration {
-					r.ExpiresIn = maxDuration
+				if time.Now().After(ssoExp) {
+					return nil, status.Errorf(codes.Unauthenticated, "SSO token has expired")
+				}
+				if r.ExpiresIn == 0 {
+					r.ExpiresIn = int64(time.Until(ssoExp).Seconds())
+				} else {
+					maxDuration := int64(time.Until(ssoExp).Seconds())
+					if r.ExpiresIn > maxDuration {
+						r.ExpiresIn = maxDuration
+					}
 				}
 			}
 		}

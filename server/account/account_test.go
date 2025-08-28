@@ -458,3 +458,20 @@ func TestDeleteToken_SSOUserDeletesOwnToken(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, accountResp.Tokens, 0)
 }
+
+func TestCreateToken_SSOTokenExpired(t *testing.T) {
+	accountServer, _ := newTestAccountServer(t, t.Context())
+	
+	ssoUser := "sso-user"
+	ctx := context.WithValue(context.Background(), "claims", jwt.MapClaims{
+		"iss": "https://sso.example.com",
+		"sub": ssoUser,
+		"exp": time.Now().Add(-time.Hour).Unix(),
+	})
+	
+	_, err := accountServer.CreateToken(ctx, &account.CreateTokenRequest{
+		Name: ssoUser,
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "SSO token has expired")
+}
