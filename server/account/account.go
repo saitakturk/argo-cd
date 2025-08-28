@@ -174,9 +174,7 @@ func (s *Server) ListAccounts(ctx context.Context, _ *account.ListAccountRequest
 	if err != nil {
 		return nil, fmt.Errorf("failed to get accounts: %w", err)
 	}
-	
 	s.cleanupExpiredSSOAccounts(accounts)
-	
 	for name, a := range accounts {
 		if err := s.ensureHasAccountPermission(ctx, rbac.ActionGet, name); err == nil {
 			resp.Items = append(resp.Items, toAPIAccount(name, a))
