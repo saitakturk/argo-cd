@@ -341,3 +341,5 @@ replace (
 	k8s.io/sample-cli-plugin => k8s.io/sample-cli-plugin v0.33.1
 	k8s.io/sample-controller => k8s.io/sample-controller v0.33.1
 )
+
+replace nhooyr.io/websocket => github.com/coder/websocket v1.8.7
