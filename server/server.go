@@ -1516,6 +1516,16 @@ func (server *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, 
 		// Add claims to the context to inspect for RBAC
 		//nolint:staticcheck
 		ctx = context.WithValue(ctx, "claims", claims)
+		
+		// Auto-create local account for SSO users
+		if mapClaims, ok := claims.(jwt.MapClaims); ok {
+			if iss := jwtutil.StringField(mapClaims, "iss"); iss != util_session.SessionManagerClaimsIssuer {
+				if sub := jwtutil.StringField(mapClaims, "sub"); sub != "" {
+					server.ensureSSUserAccount(sub)
+				}
+			}
+		}
+		
 		if newToken != "" {
 			// Session tokens that are expiring soon should be regenerated if user stays active.
 			// The renewed token is stored in outgoing ServerMetadata. Metadata is available to grpc-gateway
@@ -1543,6 +1553,20 @@ func (server *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, 
 	}
 
 	return ctx, nil
+}
+
+func (server *ArgoCDServer) ensureSSUserAccount(username string) {
+	_, err := server.settingsMgr.GetAccount(username)
+	if err != nil && status.Code(err) == codes.NotFound {
+		newAccount := settings_util.Account{
+			Enabled:      true,
+			Capabilities: []settings_util.AccountCapability{settings_util.AccountCapabilityApiKey},
+			Tokens:       []settings_util.Token{},
+		}
+		if err := server.settingsMgr.AddAccount(username, newAccount); err != nil {
+			log.Warnf("Failed to create account for SSO user %s: %v", username, err)
+		}
+	}
 }
 
 func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, error) {

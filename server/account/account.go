@@ -8,6 +8,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -17,6 +18,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/account"
 	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
+	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 	"github.com/argoproj/argo-cd/v3/util/password"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 	"github.com/argoproj/argo-cd/v3/util/session"
@@ -156,8 +158,7 @@ func toAPIAccount(name string, a settings.Account) *account.Account {
 func (s *Server) ensureHasAccountPermission(ctx context.Context, action string, account string) error {
 	id := session.GetUserIdentifier(ctx)
 
-	// account has always has access to itself
-	if id == account && session.Iss(ctx) == session.SessionManagerClaimsIssuer {
+	if id == account {
 		return nil
 	}
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceAccounts, action, account); err != nil {
@@ -200,6 +201,21 @@ func (s *Server) GetAccount(ctx context.Context, r *account.GetAccountRequest) (
 func (s *Server) CreateToken(ctx context.Context, r *account.CreateTokenRequest) (*account.CreateTokenResponse, error) {
 	if err := s.ensureHasAccountPermission(ctx, rbac.ActionUpdate, r.Name); err != nil {
 		return nil, fmt.Errorf("permission denied to create token for account %s: %w", r.Name, err)
+	}
+
+	currentUser := session.GetUserIdentifier(ctx)
+	if currentUser == r.Name && session.Iss(ctx) != session.SessionManagerClaimsIssuer {
+		if claims, ok := ctx.Value("claims").(jwt.MapClaims); ok {
+			if ssoExp, err := jwtutil.ExpirationTime(claims); err == nil {
+				if time.Now().After(ssoExp) {
+					return nil, status.Errorf(codes.Unauthenticated, "SSO token has expired")
+				}
+				maxDuration := int64(time.Until(ssoExp).Seconds())
+				if r.ExpiresIn == 0 || r.ExpiresIn > maxDuration {
+					r.ExpiresIn = maxDuration
+				}
+			}
+		}
 	}
 
 	id := r.Id

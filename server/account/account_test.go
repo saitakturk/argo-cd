@@ -293,6 +293,26 @@ func TestCreateToken_UserSpecifiedID(t *testing.T) {
 	assert.ErrorContains(t, err, "account already has token with id 'test'")
 }
 
+func TestCreateToken_SSOUserWithExistingAccount(t *testing.T) {
+	ssoUserContext := func(ctx context.Context) context.Context {
+		//nolint:staticcheck
+		return context.WithValue(ctx, "claims", &jwt.RegisteredClaims{
+			Subject:  "ssouser",
+			Issuer:   "https://myargocdhost.com/api/dex",
+			IssuedAt: jwt.NewNumericDate(time.Now()),
+		})
+	}
+
+	ctx := ssoUserContext(t.Context())
+	accountServer, _ := newTestAccountServer(t, ctx, func(cm *corev1.ConfigMap, _ *corev1.Secret) {
+		cm.Data["accounts.ssouser"] = "apiKey"
+	})
+
+	resp, err := accountServer.CreateToken(ctx, &account.CreateTokenRequest{Name: "ssouser"})
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp.Token)
+}
+
 func TestDeleteToken_SuccessfullyRemoved(t *testing.T) {
 	ctx := adminContext(t.Context())
 	accountServer, _ := newTestAccountServer(t, ctx, func(cm *corev1.ConfigMap, secret *corev1.Secret) {

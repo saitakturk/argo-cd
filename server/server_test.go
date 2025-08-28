@@ -1710,3 +1710,23 @@ func Test_StaticAssetsDir_no_symlink_traversal(t *testing.T) {
 	resp = w.Result()
 	assert.Equal(t, http.StatusOK, resp.StatusCode, "should have been able to access the normal file")
 }
+func TestAuthenticate_SSO_Account_Creation(t *testing.T) {
+	t.Parallel()
+
+	// Create test server with SSO enabled
+	argocd, _ := getTestServer(t, false, true, true, settings_util.OIDCConfig{})
+	defer argocd.settingsMgr.GetSecretsLister()
+
+	// Verify account doesn't exist initially
+	_, err := argocd.settingsMgr.GetAccount("sso-test-user")
+	assert.Error(t, err)
+
+	// Call ensureSSUserAccount directly to test account creation
+	argocd.ensureSSUserAccount("sso-test-user")
+
+	// Verify account was created
+	account, err := argocd.settingsMgr.GetAccount("sso-test-user")
+	require.NoError(t, err)
+	assert.True(t, account.Enabled)
+	assert.Contains(t, account.Capabilities, settings_util.AccountCapabilityApiKey)
+}
