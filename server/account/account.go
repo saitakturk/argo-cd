@@ -158,7 +158,7 @@ func toAPIAccount(name string, a settings.Account) *account.Account {
 func (s *Server) ensureHasAccountPermission(ctx context.Context, action string, account string) error {
 	id := session.GetUserIdentifier(ctx)
 
-	if id == account {
+	if id == account && session.Iss(ctx) == session.SessionManagerClaimsIssuer {
 		return nil
 	}
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceAccounts, action, account); err != nil {
