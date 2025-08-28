@@ -289,7 +289,7 @@ func (s *Server) DeleteToken(ctx context.Context, r *account.DeleteTokenRequest)
 		if index := account.TokenIndex(r.Id); index > -1 {
 			account.Tokens = append(account.Tokens[:index], account.Tokens[index+1:]...)
 			
-			if len(account.Tokens) == 0 && len(account.Capabilities) == 1 && account.Capabilities[0] == settings.AccountCapabilityApiKey {
+			if len(account.Capabilities) == 1 && account.Capabilities[0] == settings.AccountCapabilityApiKey {
 				shouldDeleteAccount = true
 			}
 			return nil
